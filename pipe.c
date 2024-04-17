@@ -7,23 +7,49 @@
 
 int main(int argc, char *argv[])
 {
-	// Make the program work with a single command line argument (./pipe ls should output the files in directory)
 	if(argc < 2){
 		errno = EINVAL;
-		perror("Must provide at least one process to run");
+		fprintf(stderr, "Usage: %s command1 [command2 ...]\n", argv[0]);
 		exit(EINVAL);
 	}
-	// Try and run each process entered into the command line
+	// Start with stdin being 0 for the first process
+	int fd_in = 0;
+	int fd_out;
+	// Put the output of each process into a tmp file for the input of the next
 	for (int i = 1; i < argc; i++){
-		int pid = fork();
-		wait(NULL);
-		if (pid == 0) { // Child process
-			// Have the child process call the first commmand line arg
-			execlp(argv[1], argv[1], NULL);
-		} else{
-			continue;
+		char temp_file[] = "/tmp/tempfileXXXXXX";
+		if(i < argc - 1){ // For every process but the last
+			// Create a temp file and assign the output fd to this file
+			fd_out = mkstemp(temp_file);
+			if (fd_out == -1){
+				perror("Failed to make temp file");
+				return EXIT_FAILURE;
+			}
+			unlink(temp_file); // Ensure file is removed after it is closed or program terminates
 		}
-		i++;
+		// Create a child process and point its stdin to the previously created temp file
+		if(fork() == 0){
+			if(fd_in != 0){
+				dup2(fd_in,0);
+				close(fd_in); // Close fd_in as 0 is now an alias for it
+			}
+			if(i < argc - 1){
+				dup2(fd_out, 1); // Set up stdout for this process to be the temp file
+				close(fd_out); // Close fd_out as 1 is now an alias for it
+			}
+			execlp(argv[i],argv[i], NULL); // Run child process as current argument
+			perror("execlp");
+            exit(EXIT_FAILURE);
+		}else {  // Parent process clean-up/set-up
+            if (fd_in != 0) {
+                close(fd_in);
+            }
+            if (i < argc - 1) {
+                fd_in = open(temp_file, O_RDONLY);  // Next command reads from this temp file
+                close(fd_out); 
+            }
+            wait(NULL);  // Wait for the process to finish
+        }
 	}
 	return 0;
 }
