@@ -13,6 +13,17 @@ int main(int argc, char *argv[])
 		perror("Must provide at least one process to run");
 		exit(EINVAL);
 	}
-	execlp(argv[1], argv[1], NULL);
+	// Try and run each process entered into the command line
+	for (int i = 1; i < argc; i++){
+		int pid = fork();
+		wait(NULL);
+		if (pid == 0) { // Child process
+			// Have the child process call the first commmand line arg
+			execlp(argv[1], argv[1], NULL);
+		} else{
+			continue;
+		}
+		i++;
+	}
 	return 0;
 }
