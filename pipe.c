@@ -52,12 +52,16 @@ int main(int argc, char *argv[])
             if (i < argc - 1) {
                 fd_in = open(temp_file, O_RDONLY);  // Next command reads from this temp file
                 close(fd_out); 
+				wait(NULL);
             }
         }
 	}
-	// Wait for all children to finish
-	for (int i = 1; i < argc; i++) {
-		wait(NULL);
+	int status;
+	while ((wait(&status)) > 0) {
+		if (WIFEXITED(status) && WEXITSTATUS(status) != 0) {
+			exit(WEXITSTATUS(status)); // Exit with the error code of the first failing child
+		}
 	}
+
 	return 0;
 }
