@@ -12,49 +12,42 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "Usage: %s command1 [command2 ...]\n", argv[0]);
 		exit(EINVAL);
 	}
-	// Start with stdin being 0 for the first process
-	int fd_in = 0;
-	int fd_out;
-	// Put the output of each process into a tmp file for the input of the next
-	for (int i = 1; i < argc; i++){
-		char temp_file[] = "/tmp/tempfileXXXXXX";
-		if(i < argc - 1){ // For every process but the last
-			// Create a temp file and assign the output fd to this file
-			fd_out = mkstemp(temp_file);
-			if (fd_out == -1){
-				perror("Failed to make temp file");
-				return EXIT_FAILURE;
-			}
-			
+	// Create file descriptors for a new a previous pipe for interprocess communication
+	int prev_fd[2];
+	int new_fd[2];
+
+	for(int i = 1; i < argc; i++){
+		// If it is not the last command, create a pipe for the current processes output
+		if (i < argc - 1){
+			pipe(new_fd);
 		}
-		// Create a child process and point its stdin to the previously created temp file
-		if(fork() == 0){
-			if(fd_in != 0){
-				dup2(fd_in,0);
-				close(fd_in); // Close fd_in as 0 is now an alias for it
+		if(fork() == 0){ // Child process
+			// If it is not the first command then read input from previous pipe
+			if (argc > 1){
+				dup2(prev_fd[0], STDIN_FILENO);
+				close(prev_fd[0]);
 			}
-			if(i < argc - 1){
-				dup2(fd_out, 1); // Set up stdout for this process to be the temp file
-				close(fd_out); // Close fd_out as 1 is now an alias for it
-			} else {
-				// If it's the last command, we might want it to output to stdout
-				if (fd_in != 0) {
-					close(fd_in);
-				}
+			// If it is not the last command then send output to the new pipe
+			if (i < argc - 1){
+				dup2(new_fd[1], STDOUT_FILENO);
+				close(new_fd[1]);
 			}
-			execlp(argv[i],argv[i], NULL); // Run child process as current argument
-			perror("execlp");
+			// Execute the current process
+			execlp(argv[i], argv[i], NULL);
+			perror("execlp failed");
             exit(EXIT_FAILURE);
-		} else {  // Parent process clean-up/set-up
-            if (fd_in != 0) {
-                close(fd_in);
-            }
-            if (i < argc - 1) {
-                fd_in = open(temp_file, O_RDONLY);  // Next command reads from this temp file
-                close(fd_out); 
-				wait(NULL);
-            }
-        }
+		} else {  // Parent process
+			// Close the reading end of the previous pipe if its not the first command
+			if (argc > 1){
+				close(prev_fd[0]);
+			}
+			// Set the previous pipe to the new pipe if its not the last command
+			if (i < argc - 1){
+				prev_fd[0] = new_fd[0];
+				prev_fd[1] = new_fd[1];
+			}
+			wait(NULL);
+		}
 	}
 	int status;
 	while ((wait(&status)) > 0) {
