@@ -1,17 +1,31 @@
-## UID: 123456789
+## UID: 105897318
 
 ## Pipe Up
 
-One sentence description
+This program mimics the behavior of the standard pipe operator within the shell by manually piping together
+programs via file descriptor manipulation with parent and child processes.
 
 ## Building
 
-Explain briefly how to build your program
+```
+make
+```
+This will build the executable pipe
 
 ## Running
 
-Show an example run of your program, using at least two additional arguments, and what to expect
+```
+./pipe ls 
+```
+This will mimic the behavior of running the ls command with the shell which obviously outputs the contents of your current directory
+
+```
+./pipe ls wc 
+```
+This will mimic the behavior of running ls | wc which will output the number of lines, words, and characters in from the output of ls
 
 ## Cleaning up
-
-Explain briefly how to clean up all binary files
+``` 
+make clean 
+``` 
+will remove the binaries made during the build process
