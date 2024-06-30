@@ -1,5 +1,3 @@
-## UID: 105897318
-
 ## Pipe Up
 
 This program mimics the behavior of the standard pipe operator within the shell by manually piping together
